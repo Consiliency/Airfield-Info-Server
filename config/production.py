@@ -1,7 +1,11 @@
 from .settings import *
 
 DEBUG = False
-ALLOWED_HOSTS = ['*']  # You should update this with your EB URL once created
+ALLOWED_HOSTS = [
+    'airfield-info-prod2.eba-ccmiurzm.us-east-1.elasticbeanstalk.com',
+    'api.torrenceaviation.com',
+    'torrenceaviation.com'
+]
 
 # Configure database for RDS
 DATABASES = {

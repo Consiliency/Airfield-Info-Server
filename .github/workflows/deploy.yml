@@ -7,7 +7,7 @@ on:
 env:
   AWS_REGION: us-east-1
   APPLICATION_NAME: airfield-info-server
-  ENVIRONMENT_NAME: airfield-info-production
+  ENVIRONMENT_NAME: airfield-info-prod2
   DEPLOY_PACKAGE_NAME: deploy-${{ github.sha }}.zip
 
 jobs:

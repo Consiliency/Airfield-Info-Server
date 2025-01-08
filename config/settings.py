@@ -47,6 +47,17 @@ INSTALLED_APPS = [
     'airport_info',
 ]
 
+# Cache settings
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': env('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+    }
+}
+
+# Cache time to live is 24 hours (in seconds)
+CACHE_TTL = 60 * 60 * 24
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -129,9 +140,21 @@ GOOGLE_MAPS_API_KEY = env('GOOGLE_MAPS_API_KEY')
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {module} - {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'api.log'),
+            'formatter': 'verbose',
         },
     },
     'root': {
@@ -140,7 +163,12 @@ LOGGING = {
     },
     'loggers': {
         'airport_info': {
-            'handlers': ['console'],
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },

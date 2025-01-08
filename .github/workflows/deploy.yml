@@ -4,30 +4,53 @@ on:
   push:
     branches: [ main ]
 
+env:
+  AWS_REGION: us-east-1
+  APPLICATION_NAME: airfield-info-server
+  ENVIRONMENT_NAME: airfield-info-prod2
+  DEPLOY_PACKAGE_NAME: deploy-${{ github.sha }}.zip
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
+    
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
     
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-        poetry export -f requirements.txt --output requirements.txt --without-hashes
+        poetry config virtualenvs.create false
+        poetry install --no-interaction --no-ansi
+    
+    - name: Create deployment package
+      run: |
+        zip -r ${{ env.DEPLOY_PACKAGE_NAME }} ./ -x "*.git*" "*.pytest_cache*" "__pycache__/*" "*.zip"
     
     - name: Deploy to EB
       uses: einaregilsson/beanstalk-deploy@v21
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        application_name: airfield-info-server
-        environment_name: airfield-info-prod
-        region: ${{ secrets.AWS_REGION }}
-        deployment_package: . 
+        application_name: ${{ env.APPLICATION_NAME }}
+        environment_name: ${{ env.ENVIRONMENT_NAME }}
+        version_label: ${{ github.sha }}
+        region: ${{ env.AWS_REGION }}
+        deployment_package: ${{ env.DEPLOY_PACKAGE_NAME }}
+        wait_for_deployment: true 

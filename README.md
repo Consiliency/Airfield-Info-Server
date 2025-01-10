@@ -63,35 +63,39 @@ curl "http://localhost:8000/api/airports/by_iata/?code=LAX&include_timezone=true
 ```
 
 Example Response:
+
 ```json
 {
-    "id": "3484",
-    "ident": "KLAX",
-    "iata_code": "LAX",
-    "name": "Los Angeles International Airport",
+    "id": "26434",
+    "ident": "VABB",
+    "iata_code": "BOM",
+    "name": "Chhatrapati Shivaji International Airport",
     "type": "large_airport",
-    "latitude": "33.942501",
-    "longitude": "-118.407997",
-    "elevation_ft": 125.0,
-    "continent": "NA",
-    "iso_country": "US",
-    "iso_region": "US-CA",
-    "municipality": "Los Angeles",
+    "latitude": "19.088699",
+    "longitude": "72.867897",
+    "elevation_ft": 39.0,
+    "continent": "AS",
+    "iso_country": "IN",
+    "iso_region": "IN-MM",
+    "municipality": "Mumbai",
     "scheduled_service": true,
-    "gps_code": "KLAX",
-    "local_code": "LAX",
-    "home_link": "https://www.flylax.com/",
-    "wikipedia_link": "https://en.wikipedia.org/wiki/Los_Angeles_International_Airport",
-    "keywords": "Tom Bradley",
+    "gps_code": "VABB",
+    "local_code": null,
+    "home_link": "http://www.csia.in/",
+    "wikipedia_link": "https://en.wikipedia.org/wiki/Chhatrapati_Shivaji_International_Airport",
+    "keywords": "Bombay, Sahar International Airport",
     "timezone": {
-        "timezone_id": "America/Los_Angeles",
-        "timezone_name": "Pacific Standard Time",
-        "raw_offset": -28800,
+        "timezone_id": "Asia/Calcutta",
+        "timezone_name": "India Standard Time",
+        "raw_offset": 19800,
         "dst_offset": 0,
-        "total_offset": -8.0,
-        "last_updated": "2025-01-07T20:50:22.543487Z"
+        "total_offset": 5.5,
+        "last_updated": "2025-01-08T09:43:20.622030Z",
+        "aliases": [
+            "Asia/Kolkata"
+        ]
     },
-    "updated": "2025-01-07T20:50:22.543487Z"
+    "updated": "2025-01-08T09:43:20.641220Z"
 }
 ```
 

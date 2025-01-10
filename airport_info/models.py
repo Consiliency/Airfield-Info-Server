@@ -34,6 +34,7 @@ class TimeZone(models.Model):
     )
     timezone_id = models.CharField(max_length=100, null=True, blank=True)  # e.g., "America/Los_Angeles"
     timezone_name = models.CharField(max_length=100, null=True, blank=True)  # e.g., "Pacific Daylight Time"
+    aliases = models.TextField(null=True, blank=True, help_text="Space-separated list of timezone aliases")
     last_updated = models.DateTimeField(null=True, blank=True)
 
     @property

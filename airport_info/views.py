@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-CACHE_TTL = 60 * 60 * 24  # 24 hours in seconds
+CACHE_TTL = 60 * 60 * 24  # 24 hours
 
 class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -45,7 +45,7 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
         if include_timezone:
             should_update = (
                 airport.timezone is None or  # No timezone data exists
-                airport.timezone.needs_update  # Existing data is outdated
+                airport.timezone.needs_update  # Timezone data is outdated
             )
             if should_update:
                 logger.info("Updating timezone information")
@@ -84,7 +84,7 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
             cache.set(cache_key, serializer.data, CACHE_TTL)
             return Response(serializer.data)
         except Exception as e:
-            logger.error(f"Error processing request: {str(e)}")
+            logger.error(f"Error processing IATA request: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -122,7 +122,7 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
             cache.set(cache_key, serializer.data, CACHE_TTL)
             return Response(serializer.data)
         except Exception as e:
-            logger.error(f"Error processing request: {str(e)}")
+            logger.error(f"Error processing ICAO request: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR

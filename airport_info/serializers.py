@@ -11,8 +11,18 @@ class TimeZoneSerializer(serializers.ModelSerializer):
             'raw_offset',
             'dst_offset',
             'total_offset',
-            'last_updated'
+            'last_updated',
+            'aliases'
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Convert space-separated aliases string to list
+        if data['aliases']:
+            data['aliases'] = data['aliases'].split()
+        else:
+            data['aliases'] = []
+        return data
 
 
 class AirfieldSerializer(serializers.ModelSerializer):

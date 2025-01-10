@@ -15,6 +15,7 @@ files = [
 tests = ["mypy (>=0.800)", "pytest", "pytest-asyncio"]
 
 [[package]]
+<<<<<<< HEAD
 name = "async-timeout"
 version = "5.0.1"
 description = "Timeout context manager for asyncio programs"
@@ -26,6 +27,8 @@ files = [
 ]
 
 [[package]]
+=======
+>>>>>>> origin/main
 name = "boto3"
 version = "1.35.94"
 description = "The AWS SDK for Python"
@@ -227,6 +230,7 @@ docs = ["furo (>=2021.8.17b43,<2021.9.dev0)", "sphinx (>=3.5.0)", "sphinx-notfou
 testing = ["coverage[toml] (>=5.0a4)", "pytest (>=4.6.11)"]
 
 [[package]]
+<<<<<<< HEAD
 name = "django-redis"
 version = "5.4.0"
 description = "Full featured redis cache backend for Django."
@@ -245,6 +249,8 @@ redis = ">=3,<4.0.0 || >4.0.0,<4.0.1 || >4.0.1"
 hiredis = ["redis[hiredis] (>=3,!=4.0.0,!=4.0.1)"]
 
 [[package]]
+=======
+>>>>>>> origin/main
 name = "django-storages"
 version = "1.14.4"
 description = "Support for many storage backends in Django"
@@ -454,6 +460,7 @@ files = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "redis"
 version = "5.2.1"
 description = "Python client for Redis database and key-value store"
@@ -472,6 +479,8 @@ hiredis = ["hiredis (>=3.0.0)"]
 ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==23.2.1)", "requests (>=2.31.0)"]
 
 [[package]]
+=======
+>>>>>>> origin/main
 name = "requests"
 version = "2.32.3"
 description = "Python HTTP for Humans."
@@ -580,4 +589,8 @@ brotli = ["brotli"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11.0"
+<<<<<<< HEAD
 content-hash = "ec7243042a0255fe8ee9ee51ac676243f58df351befddcda37b5097d2b8a4e32"
+=======
+content-hash = "3e02954950dca16da400197723b95ed72860d7191a1b113decd601c8084909cb"
+>>>>>>> origin/main

@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
+import logging
 
 
 class DataSource(models.Model):
@@ -36,12 +37,6 @@ class TimeZone(models.Model):
     timezone_name = models.CharField(max_length=100, null=True, blank=True)  # e.g., "Pacific Daylight Time"
     aliases = models.TextField(null=True, blank=True, help_text="Space-separated list of timezone aliases")
     last_updated = models.DateTimeField(null=True, blank=True)
-
-    @property
-    def needs_update(self):
-        if not self.last_updated:
-            return True
-        return self.last_updated < timezone.now() - timedelta(days=90)  # 3 months
 
     @property
     def total_offset(self):
@@ -113,8 +108,18 @@ class Airfield(models.Model):
 
     def update_timezone(self, api_key):
         """Update timezone information using Google Maps API if needed."""
-        if self.timezone and not self.timezone.needs_update:
-            return self.timezone
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Check if we have timezone data and if it's complete
+        if self.timezone:
+            if (self.timezone.raw_offset is not None and
+                self.timezone.dst_offset is not None and
+                self.timezone.timezone_id is not None and
+                self.timezone.timezone_name is not None and
+                self.timezone.last_updated and
+                self.timezone.last_updated > timezone.now() - timedelta(days=30)):
+                return self.timezone
 
         import requests
         import time
@@ -128,32 +133,44 @@ class Airfield(models.Model):
         )
 
         try:
+            logger.info(f"Fetching timezone for {self} from Google Maps API")
             response = requests.get(url)
+            logger.info(f"API Response status: {response.status_code}")
             if response.status_code == 200:
                 data = response.json()
+                logger.info(f"API Response data: {data}")
                 if data['status'] == 'OK':
-                    timezone_obj, created = TimeZone.objects.get_or_create(
-                        timezone_id=data['timeZoneId'],
-                        defaults={
-                            'name': data['timeZoneId'],
-                            'raw_offset': data['rawOffset'],
-                            'dst_offset': data['dstOffset'],
-                            'timezone_name': data['timeZoneName'],
-                            'last_updated': timezone.now()
-                        }
-                    )
-                    if not created:
-                        timezone_obj.raw_offset = data['rawOffset']
-                        timezone_obj.dst_offset = data['dstOffset']
-                        timezone_obj.timezone_name = data['timeZoneName']
-                        timezone_obj.last_updated = timezone.now()
-                        timezone_obj.save()
-                    
-                    self.timezone = timezone_obj
-                    self.save()
-                    return timezone_obj
+                    # Try to find existing timezone by ID first
+                    try:
+                        timezone_obj = TimeZone.objects.filter(timezone_id=data['timeZoneId']).first()
+                        if not timezone_obj:
+                            # If not found, create new one
+                            timezone_obj = TimeZone.objects.create(
+                                timezone_id=data['timeZoneId'],
+                                name=data['timeZoneId'],
+                                raw_offset=data['rawOffset'],
+                                dst_offset=data['dstOffset'],
+                                timezone_name=data['timeZoneName'],
+                                last_updated=timezone.now()
+                            )
+                        else:
+                            # Update existing timezone
+                            timezone_obj.raw_offset = data['rawOffset']
+                            timezone_obj.dst_offset = data['dstOffset']
+                            timezone_obj.timezone_name = data['timeZoneName']
+                            timezone_obj.last_updated = timezone.now()
+                            timezone_obj.save()
+                        
+                        self.timezone = timezone_obj
+                        self.save()
+                        logger.info(f"Updated timezone for {self}: {timezone_obj}")
+                        return timezone_obj
+                    except Exception as e:
+                        logger.error(f"Database error updating timezone for {self}: {str(e)}")
+                else:
+                    logger.error(f"API Error for {self}: {data['status']} - {data.get('error_message', 'No error message')}")
         except Exception as e:
-            print(f"Error updating timezone for {self}: {str(e)}")
+            logger.error(f"Error updating timezone for {self}: {str(e)}")
         
         return None
 

@@ -4,14 +4,13 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from django.core.cache import cache
 from .models import Airfield
 from .serializers import AirfieldSerializer
 import logging
+from datetime import datetime, timedelta
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
-
-CACHE_TTL = 60 * 60 * 24  # 24 hours
 
 class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -41,16 +40,43 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     def _update_timezone_if_needed(self, airport, include_timezone):
-        """Helper method to update timezone data if needed."""
-        if include_timezone:
-            should_update = (
-                airport.timezone is None or  # No timezone data exists
-                airport.timezone.needs_update  # Timezone data is outdated
-            )
-            if should_update:
-                logger.info("Updating timezone information")
-                airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
-                airport.refresh_from_db()
+        """Helper method to update timezone data if needed.
+        Only fetches timezone data if:
+        1. include_timezone=True in the request
+        2. Either no timezone exists or the existing data is incomplete or is UTC
+        3. The data is more than 30 days old
+        """
+        if not include_timezone:
+            return
+            
+        # Only update if we don't have timezone data or it's incomplete or UTC
+        if (airport.timezone is None or
+            airport.timezone.timezone_id == "UTC" or
+            airport.timezone.timezone_name == "Coordinated Universal Time"):
+            logger.info(f"Fetching timezone for {airport} - no timezone data exists or is UTC")
+            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+            airport.refresh_from_db()
+            return
+            
+        # Check if existing timezone data is incomplete
+        if (airport.timezone.raw_offset is None or
+            airport.timezone.dst_offset is None or
+            airport.timezone.timezone_id is None or
+            airport.timezone.timezone_name is None):
+            logger.info(f"Fetching timezone for {airport} - incomplete timezone data")
+            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+            airport.refresh_from_db()
+            return
+            
+        # Check if data is older than 30 days
+        if (airport.timezone.last_updated and 
+            airport.timezone.last_updated < timezone.now() - timedelta(days=30)):
+            logger.info(f"Fetching timezone for {airport} - data is over 30 days old")
+            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+            airport.refresh_from_db()
+            return
+        
+        logger.debug(f"Using existing timezone data for {airport}")
 
     @action(detail=False, methods=['get'])
     def by_iata(self, request):
@@ -66,23 +92,23 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Try to get from cache first
-        cache_key = f'airport_iata_{iata}_{include_timezone}'
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            logger.info(f"Cache hit for IATA: {iata}")
-            return Response(cached_data)
-
         try:
             airport = get_object_or_404(Airfield, iata_code=iata)
             logger.info(f"Found airport: {airport}")
             
-            # Update timezone if needed
-            self._update_timezone_if_needed(airport, include_timezone)
+            # Update timezone if requested
+            if include_timezone:
+                logger.info(f"Updating timezone for {airport}")
+                if airport.timezone:
+                    logger.info(f"Current timezone data: {airport.timezone.timezone_id}, {airport.timezone.timezone_name}")
+                self._update_timezone_if_needed(airport, include_timezone)
+                logger.info(f"After update - timezone data: {airport.timezone.timezone_id if airport.timezone else 'None'}")
             
             serializer = self.get_serializer(airport)
-            cache.set(cache_key, serializer.data, CACHE_TTL)
-            return Response(serializer.data)
+            response_data = serializer.data
+            logger.info(f"Response data for {iata}: {response_data.get('timezone', {})}")
+            
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Error processing IATA request: {str(e)}")
             return Response(
@@ -104,23 +130,23 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Try to get from cache first
-        cache_key = f'airport_icao_{icao}_{include_timezone}'
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            logger.info(f"Cache hit for ICAO: {icao}")
-            return Response(cached_data)
-
         try:
             airport = get_object_or_404(Airfield, ident=icao)
             logger.info(f"Found airport: {airport}")
             
             # Update timezone if needed
-            self._update_timezone_if_needed(airport, include_timezone)
+            if include_timezone:
+                logger.info(f"Updating timezone for {airport}")
+                if airport.timezone:
+                    logger.info(f"Current timezone data: {airport.timezone.timezone_id}, {airport.timezone.timezone_name}")
+                self._update_timezone_if_needed(airport, include_timezone)
+                logger.info(f"After update - timezone data: {airport.timezone.timezone_id if airport.timezone else 'None'}")
             
             serializer = self.get_serializer(airport)
-            cache.set(cache_key, serializer.data, CACHE_TTL)
-            return Response(serializer.data)
+            response_data = serializer.data
+            logger.info(f"Response data for {icao}: {response_data.get('timezone', {})}")
+            
+            return Response(response_data)
         except Exception as e:
             logger.error(f"Error processing ICAO request: {str(e)}")
             return Response(

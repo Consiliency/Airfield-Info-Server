@@ -43,17 +43,18 @@ class Command(BaseCommand):
             )
             return None
 
-        # Make the request with existing headers if available
+        # Only use cache headers if not forcing
         headers = {}
-        if data_source.last_etag:
-            headers['If-None-Match'] = data_source.last_etag
-        if data_source.last_modified:
-            headers['If-Modified-Since'] = data_source.last_modified
+        if not self.force:
+            if data_source.last_etag:
+                headers['If-None-Match'] = data_source.last_etag
+            if data_source.last_modified:
+                headers['If-Modified-Since'] = data_source.last_modified
 
         response = requests.get(url, headers=headers, stream=True)
 
-        # Check if the file has been modified
-        if response.status_code == 304:  # Not Modified
+        # Check if the file has been modified (only if not forcing)
+        if not self.force and response.status_code == 304:  # Not Modified
             self.stdout.write(self.style.SUCCESS('Data is up to date'))
             return None
 
@@ -86,7 +87,12 @@ class Command(BaseCommand):
             # Get or create a default timezone (UTC)
             default_timezone, _ = TimeZone.objects.get_or_create(
                 name='UTC',
-                defaults={'offset': 0, 'uses_dst': False}
+                defaults={
+                    'raw_offset': 0,
+                    'dst_offset': 0,
+                    'timezone_id': 'UTC',
+                    'timezone_name': 'Coordinated Universal Time'
+                }
             )
 
             created_count = 0

@@ -11,6 +11,51 @@ A Django-based REST API server that provides detailed information about airports
 - CORS support for cross-origin requests
 - No authentication required for API access
 
+## Prerequisites
+
+1. Install PostgreSQL:
+```bash
+# Ubuntu/WSL
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# Start PostgreSQL service
+sudo service postgresql start
+
+# Create database and user
+sudo -u postgres psql
+postgres=# CREATE DATABASE airfield_info;
+postgres=# CREATE USER your_user WITH PASSWORD 'your_password';
+postgres=# GRANT ALL PRIVILEGES ON DATABASE airfield_info TO your_user;
+postgres=# \q
+```
+
+2. Install Redis (Optional - only if using caching):
+```bash
+# Ubuntu/WSL
+sudo apt update
+sudo apt install redis-server
+
+# Start Redis service
+sudo service redis-server start
+
+# Test Redis connection
+redis-cli ping  # Should return PONG
+```
+
+3. Install Python 3.11:
+```bash
+# Ubuntu/WSL
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.11 python3.11-dev python3.11-venv
+```
+
+4. Install Poetry:
+```bash
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
 ## Setup
 
 1. Clone the repository:
@@ -28,20 +73,88 @@ poetry install
 ```env
 DEBUG=True
 SECRET_KEY=your_secret_key
-DATABASE_URL=postgres://user:password@localhost:5432/airfield_info
+DATABASE_URL=postgres://your_user:your_password@localhost:5432/airfield_info
 ALLOWED_HOSTS=localhost,127.0.0.1
-GOOGLE_MAPS_API_KEY=your_google_maps_api_key  # Only needed for timezone updates
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key  # Required for timezone updates
+
+# Redis settings (optional - only if using caching)
+REDIS_URL=redis://localhost:6379/0
+USE_REDIS_CACHE=False  # Set to True to enable Redis caching
 ```
 
-4. Run migrations:
+4. Verify services are running:
+```bash
+# Check PostgreSQL status
+sudo service postgresql status
+
+# Check Redis status (if using caching)
+sudo service redis-server status
+```
+
+5. Run migrations:
 ```bash
 poetry run python manage.py migrate
 ```
 
-5. Start the development server:
+6. Start the development server:
 ```bash
 poetry run python manage.py runserver
 ```
+
+## Database Management
+
+### Backup PostgreSQL Database
+```bash
+pg_dump -U your_user -d airfield_info > backup.sql
+```
+
+### Restore PostgreSQL Database
+```bash
+psql -U your_user -d airfield_info < backup.sql
+```
+
+### Reset Database
+```bash
+poetry run python manage.py reset_db  # Requires django-extensions
+poetry run python manage.py migrate
+```
+
+## Troubleshooting
+
+### PostgreSQL Issues
+1. If PostgreSQL service fails to start:
+```bash
+sudo systemctl status postgresql  # Check detailed status
+sudo journalctl -u postgresql  # Check logs
+```
+
+2. If connection fails:
+- Verify PostgreSQL is running
+- Check database URL in .env
+- Ensure user has correct permissions
+
+### Redis Issues (if using caching)
+1. If Redis service fails to start:
+```bash
+sudo systemctl status redis-server  # Check detailed status
+sudo journalctl -u redis-server  # Check logs
+```
+
+2. If connection fails:
+- Verify Redis is running
+- Check Redis URL in .env
+- Test connection: `redis-cli ping`
+
+### Application Issues
+1. If timezone updates fail:
+- Verify Google Maps API key is valid
+- Check API quota limits
+- Ensure internet connectivity
+
+2. If database migrations fail:
+- Verify PostgreSQL is running
+- Check database permissions
+- Review migration logs
 
 ## API Endpoints
 

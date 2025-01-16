@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import environ
 import logging.config
+import logging
 
 # Initialize environ
 env = environ.Env(
@@ -136,6 +137,9 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 GOOGLE_MAPS_API_KEY = env('GOOGLE_MAPS_API_KEY')
+
+logger = logging.getLogger(__name__)
+logger.info(f"Loading Google Maps API key: {GOOGLE_MAPS_API_KEY[:10]}...")
 
 LOGGING = {
     'version': 1,

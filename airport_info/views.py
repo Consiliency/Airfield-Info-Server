@@ -40,49 +40,55 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
     def _update_timezone_if_needed(self, airport, include_timezone):
-        """Helper method to update timezone data if needed.
-        Only fetches timezone data if:
-        1. include_timezone=True in the request
-        2. Either no timezone exists or the existing data is incomplete or is UTC
-        3. The data is more than 30 days old
-        """
-        if not include_timezone:
-            return
-            
-        # Only update if we don't have timezone data or it's incomplete or UTC
-        if (airport.timezone is None or
-            airport.timezone.timezone_id == "UTC" or
-            airport.timezone.timezone_name == "Coordinated Universal Time"):
-            logger.info(f"Fetching timezone for {airport} - no timezone data exists or is UTC")
-            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
-            airport.refresh_from_db()
-            return
-            
-        # Check if existing timezone data is incomplete
-        if (airport.timezone.raw_offset is None or
-            airport.timezone.dst_offset is None or
-            airport.timezone.timezone_id is None or
-            airport.timezone.timezone_name is None):
-            logger.info(f"Fetching timezone for {airport} - incomplete timezone data")
-            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
-            airport.refresh_from_db()
-            return
-            
-        # Check if data is older than 30 days
-        if (airport.timezone.last_updated and 
-            airport.timezone.last_updated < timezone.now() - timedelta(days=30)):
-            logger.info(f"Fetching timezone for {airport} - data is over 30 days old")
-            airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
-            airport.refresh_from_db()
-            return
+        """Helper method to update timezone data if needed."""
+        logger.info(f"Checking if timezone update needed for {airport}")
+        logger.info(f"include_timezone parameter: {include_timezone}")
         
-        logger.debug(f"Using existing timezone data for {airport}")
+        if not include_timezone:
+            logger.debug("Timezone update skipped - include_timezone=false")
+            return
+            
+        needs_update = False
+        reason = ""
+        
+        if airport.timezone is None:
+            needs_update = True
+            reason = "no timezone data exists"
+        elif (airport.timezone.timezone_id == "UTC" or 
+              airport.timezone.timezone_name == "Coordinated Universal Time"):
+            needs_update = True
+            reason = f"timezone is UTC (id: {airport.timezone.timezone_id}, name: {airport.timezone.timezone_name})"
+        elif (airport.timezone.raw_offset is None or
+              airport.timezone.dst_offset is None or
+              airport.timezone.timezone_id is None or
+              airport.timezone.timezone_name is None):
+            needs_update = True
+            reason = "incomplete timezone data"
+        elif (airport.timezone.last_updated is None or
+              airport.timezone.last_updated < timezone.now() - timedelta(days=90)):
+            needs_update = True
+            reason = f"timezone data is old (last_updated: {airport.timezone.last_updated})"
+        
+        logger.info(f"Needs update: {needs_update}, Reason: {reason}")
+        
+        if needs_update:
+            logger.info(f"Updating timezone for {airport} - Reason: {reason}")
+            logger.info(f"Current timezone data: {airport.timezone.__dict__ if airport.timezone else None}")
+            
+            result = airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+            logger.info(f"Update timezone result: {result.__dict__ if result else 'Failed'}")
+            
+            airport.refresh_from_db()
+            logger.info(f"After refresh - timezone data: {airport.timezone.__dict__ if airport.timezone else None}")
+        else:
+            logger.info(f"No timezone update needed for {airport}")
 
     @action(detail=False, methods=['get'])
     def by_iata(self, request):
         """Get airport by IATA code."""
         iata = request.query_params.get('code', '').upper()
         include_timezone = request.query_params.get('include_timezone', '').lower() == 'true'
+        logger.info(f"Request params - code: {iata}, include_timezone: {include_timezone}")
         
         self._log_request_info(request, 'IATA', iata)
         

@@ -111,15 +111,11 @@ class Airfield(models.Model):
         import logging
         logger = logging.getLogger(__name__)
         
-        # Check if we have timezone data and if it's complete
-        if self.timezone:
-            if (self.timezone.raw_offset is not None and
-                self.timezone.dst_offset is not None and
-                self.timezone.timezone_id is not None and
-                self.timezone.timezone_name is not None and
-                self.timezone.last_updated and
-                self.timezone.last_updated > timezone.now() - timedelta(days=30)):
-                return self.timezone
+        logger.info(f"Using API key: {api_key[:10]}...")  # Only log first 10 chars for security
+        
+        if not api_key:
+            logger.error("No API key provided")
+            return None
 
         import requests
         import time
@@ -133,18 +129,19 @@ class Airfield(models.Model):
         )
 
         try:
-            logger.info(f"Fetching timezone for {self} from Google Maps API")
+            logger.info(f"Making API request for {self} to URL: {url.replace(api_key, 'REDACTED')}")
             response = requests.get(url)
             logger.info(f"API Response status: {response.status_code}")
+            
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"API Response data: {data}")
+                
                 if data['status'] == 'OK':
-                    # Try to find existing timezone by ID first
                     try:
                         timezone_obj = TimeZone.objects.filter(timezone_id=data['timeZoneId']).first()
                         if not timezone_obj:
-                            # If not found, create new one
+                            logger.info(f"Creating new timezone object for {data['timeZoneId']}")
                             timezone_obj = TimeZone.objects.create(
                                 timezone_id=data['timeZoneId'],
                                 name=data['timeZoneId'],
@@ -154,7 +151,7 @@ class Airfield(models.Model):
                                 last_updated=timezone.now()
                             )
                         else:
-                            # Update existing timezone
+                            logger.info(f"Updating existing timezone object for {data['timeZoneId']}")
                             timezone_obj.raw_offset = data['rawOffset']
                             timezone_obj.dst_offset = data['dstOffset']
                             timezone_obj.timezone_name = data['timeZoneName']
@@ -163,14 +160,16 @@ class Airfield(models.Model):
                         
                         self.timezone = timezone_obj
                         self.save()
-                        logger.info(f"Updated timezone for {self}: {timezone_obj}")
+                        logger.info(f"Successfully updated timezone for {self}: {timezone_obj}")
                         return timezone_obj
                     except Exception as e:
-                        logger.error(f"Database error updating timezone for {self}: {str(e)}")
+                        logger.error(f"Database error updating timezone for {self}: {str(e)}", exc_info=True)
                 else:
                     logger.error(f"API Error for {self}: {data['status']} - {data.get('error_message', 'No error message')}")
+            else:
+                logger.error(f"HTTP Error: {response.status_code} - {response.text}")
         except Exception as e:
-            logger.error(f"Error updating timezone for {self}: {str(e)}")
+            logger.error(f"Error updating timezone for {self}: {str(e)}", exc_info=True)
         
         return None
 

@@ -1,0 +1,23 @@
+version: '3.8'
+name: delta-airlines-dev
+
+services:
+  backend-service:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile.dev
+    container_name: ${BACKEND_CONTAINER_NAME} # Use variable for container name
+    env_file:
+      - .env # Load environment variables from .env file in the same folder
+      - ../.env # Load environment variables from parent folder
+    networks:
+      - delta-airlines-dev # Use variable for network name
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}" # Expose backend port from .env file
+    command: python manage.py runserver 0.0.0.0:${BACKEND_PORT}
+    restart: always
+
+networks:
+  delta-airlines-dev:
+    name: delta-airlines-dev
+    driver: bridge

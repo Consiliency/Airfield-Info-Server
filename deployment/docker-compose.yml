@@ -1,0 +1,23 @@
+version: '3.8'
+name: airfield-info
+
+services:
+  backend-service:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    container_name: ${BACKEND_CONTAINER_NAME} # Use variable for container name
+    env_file:
+      - .env # Load environment variables from .env file in the same folder
+      - ../.env # Load environment variables from parent folder
+    networks:
+      - airfield-info # Use variable for network name
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}" # Expose backend port from .env file
+    command: python manage.py runserver 0.0.0.0:${BACKEND_PORT}
+    restart: always
+
+networks:
+  airfield-info:
+    name: airfield-info
+    driver: bridge

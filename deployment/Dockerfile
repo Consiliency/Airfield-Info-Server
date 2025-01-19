@@ -27,7 +27,7 @@ COPY ../ /app
 RUN poetry config virtualenvs.create false
 
 # Install project dependencies
-RUN poetry install --no-dev --no-interaction --no-ansi
+poetry install --only main --no-interaction --no-ansi
 
 # give execute permission to the startup script
 

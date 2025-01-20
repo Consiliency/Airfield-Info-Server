@@ -59,22 +59,29 @@ class Command(BaseCommand):
                 if keyword.get('name') == 'tz':
                     # Process each timezone type
                     for type_elem in keyword.findall('.//type'):
-                        alias = type_elem.get('alias')
-                        if alias:
-                            # The alias attribute contains the canonical timezone ID and aliases
-                            all_names = alias.split(' ')
+                        alias_attr = type_elem.get('alias')
+                        iana_attr = type_elem.get('iana')
+                        
+                        if alias_attr:
+                            # Split the alias attribute into list
+                            all_names = alias_attr.split(' ')
                             if all_names:
-                                # Get the canonical ID (first name) and any additional aliases
+                                # First name is the canonical ID
                                 canonical_id = all_names[0]
-                                aliases = all_names[1:] if len(all_names) > 1 else []
+                                aliases = set(all_names[1:]) if len(all_names) > 1 else set()
                                 
-                                # Add any IANA preferred names
-                                iana = type_elem.get('iana')
-                                if iana:
-                                    aliases.extend([a for a in iana.split(' ') if a not in aliases])
+                                # Add IANA names if they differ from canonical and aliases
+                                if iana_attr:
+                                    iana_names = set(iana_attr.split(' '))
+                                    aliases.update(iana_names)
                                 
-                                # Store in map
+                                # Store both ways for lookup
                                 timezone_map[canonical_id] = aliases
+                                
+                                # Also store mapping for IANA canonical name if different
+                                if iana_attr and iana_attr != canonical_id:
+                                    iana_canonical = iana_attr.split(' ')[0]
+                                    timezone_map[iana_canonical] = {canonical_id}.union(aliases - {iana_canonical})
 
             return timezone_map
 
@@ -89,35 +96,32 @@ class Command(BaseCommand):
         updated_count = 0
         skipped_count = 0
 
-        # First, create a reverse lookup from aliases to canonical IDs
-        reverse_map = {}
-        canonical_aliases = {}  # Store all aliases for each canonical ID
-        for canonical_id, aliases in timezone_map.items():
-            reverse_map[canonical_id] = canonical_id  # Map canonical to itself
-            canonical_aliases[canonical_id] = set([canonical_id])  # Include canonical ID in its own aliases
-            for alias in aliases:
-                reverse_map[alias] = canonical_id
-                canonical_aliases[canonical_id].add(alias)
-
         # Now update timezone records
         for timezone in TimeZone.objects.all():
             try:
                 if timezone.timezone_id:
-                    # Try to find the canonical ID for this timezone
-                    canonical_id = reverse_map.get(timezone.timezone_id)
-                    if canonical_id:
-                        # Get all aliases for the canonical ID
-                        aliases = canonical_aliases.get(canonical_id, set())
-                        # Remove the current timezone_id from aliases to avoid redundancy
-                        aliases.discard(timezone.timezone_id)
-                        # Store aliases as space-separated string
-                        timezone.aliases = ' '.join(sorted(aliases)) if aliases else ''
-                        timezone.save()
-                        updated_count += 1
-                        self.stdout.write(f"Updated {timezone.timezone_id} with aliases: {aliases}")
+                    # Get the aliases directly from the timezone_map
+                    aliases = set()
+                    
+                    # Check if this timezone_id is a canonical ID
+                    if timezone.timezone_id in timezone_map:
+                        aliases.update(timezone_map[timezone.timezone_id])
                     else:
-                        skipped_count += 1
-                        logger.warning(f"No canonical ID found for timezone: {timezone.timezone_id}")
+                        # Check if this timezone_id is an alias
+                        for canonical_id, alias_list in timezone_map.items():
+                            if timezone.timezone_id in alias_list:
+                                # Add the canonical ID and other aliases
+                                aliases.update([canonical_id])
+                                aliases.update(alias_list)
+                                # Remove self from aliases
+                                aliases.discard(timezone.timezone_id)
+                                break
+                    
+                    # Store aliases as space-separated string
+                    timezone.aliases = ' '.join(sorted(aliases)) if aliases else ''
+                    timezone.save()
+                    updated_count += 1
+                    self.stdout.write(f"Updated {timezone.timezone_id} with aliases: {aliases}")
                 else:
                     skipped_count += 1
                     logger.warning("Skipped timezone with no ID")
@@ -129,6 +133,8 @@ class Command(BaseCommand):
         return updated_count, skipped_count
 
     def handle(self, *args, **options):
+        # Imports timezone aliases
+        # This is typically run once to set up timezone mappings
         self.force = options['force']
         
         # Download the timezone data

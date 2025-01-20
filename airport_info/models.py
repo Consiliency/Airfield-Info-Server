@@ -105,6 +105,27 @@ class Airfield(models.Model):
         blank=True
     )
     updated = models.DateTimeField(auto_now=True)
+    timezone_last_updated = models.DateTimeField(null=True, blank=True)
+
+    def needs_timezone_update(self):
+        """Return True if timezone needs to be updated"""
+        if not self.timezone_last_updated:
+            return True
+        
+        thirty_days_ago = timezone.now() - timezone.timedelta(days=30)
+        return self.timezone_last_updated < thirty_days_ago
+    
+    def update_timezone_if_needed(self, api_key):
+        """Update timezone only if needed"""
+        if self.needs_timezone_update():
+            old_timezone_id = self.timezone.timezone_id if self.timezone else None
+            updated = self.update_timezone(api_key)
+            if updated and (not old_timezone_id or old_timezone_id != updated.timezone_id):
+                # Only update aliases if we got a new timezone
+                from django.core.management import call_command
+                call_command('import_timezone_aliases')
+            return updated
+        return False
 
     def update_timezone(self, api_key):
         """Update timezone information using Google Maps API if needed."""
@@ -159,6 +180,7 @@ class Airfield(models.Model):
                             timezone_obj.save()
                         
                         self.timezone = timezone_obj
+                        self.timezone_last_updated = timezone.now()
                         self.save()
                         logger.info(f"Successfully updated timezone for {self}: {timezone_obj}")
                         return timezone_obj

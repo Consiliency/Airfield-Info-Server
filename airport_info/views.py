@@ -159,3 +159,27 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Check and update timezone if needed
+        instance.update_timezone_if_needed(settings.GOOGLE_MAPS_API_KEY)
+        
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        # Update timezones for filtered queryset if needed
+        for airfield in queryset:
+            airfield.update_timezone_if_needed(settings.GOOGLE_MAPS_API_KEY)
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

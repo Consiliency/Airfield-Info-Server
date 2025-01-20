@@ -1,6 +1,3 @@
-# Run timezone alias update every 2 weeks at 3:00 AM on Sunday
-0 3 */14 * 0 cd /home/jennertorrence/code/air_field_info_server && poetry run python manage.py import_timezone_aliases >> /var/log/airfield_info/timezone_updates.log 2>&1
-
-# Run airport data update every week at 2:00 AM on Sunday
-0 2 * * 0 cd /home/jennertorrence/code/air_field_info_server && poetry run python manage.py import_airports >> /var/log/airfield_info/airport_updates.log 2>&1
+# Check for airport data updates daily at 2:00 AM
+0 2 * * * cd /home/jennertorrence/code/air_field_info_server && poetry run python manage.py import_airports >> /var/log/airfield_info/airport_updates.log 2>&1
 

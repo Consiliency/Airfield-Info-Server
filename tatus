@@ -1,0 +1,10 @@
+[33mcommit b48e3cb85db763a393afbf78ed5736cdbc403df4[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: ViperJuice <jennertorrence@hotmail.com>
+Date:   Wed Jan 15 13:18:55 2025 -0500
+
+    Move air_field_info_server to subdirectory
+
+ air_field_info_server | 2 [32m+[m[31m-[m
+ deltabidparser_dart   | 2 [32m+[m[31m-[m
+ logs/api.log          | 0
+ 3 files changed, 2 insertions(+), 2 deletions(-)

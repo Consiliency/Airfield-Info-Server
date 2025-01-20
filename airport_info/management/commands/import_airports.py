@@ -9,7 +9,7 @@ from airport_info.models import Airfield, TimeZone, DataSource
 
 
 class Command(BaseCommand):
-    help = 'Import airports from the OurAirports CSV file'
+    help = 'Import airports from CSV file and update only if changes detected'
     
     DEFAULT_URL = 'https://davidmegginson.github.io/ourairports-data/airports.csv'
 
@@ -75,10 +75,22 @@ class Command(BaseCommand):
         return temp_file.name
 
     def handle(self, *args, **options):
+        # Imports airport data from airports.csv
+        # This is a manual process, run when new airport data is available
         self.force = options['force']
         url = options['url']
         
         try:
+            # Check if we need to download new data
+            data_source = DataSource.objects.filter(url=url).first()
+            if data_source and data_source.last_download:
+                last_update = data_source.last_download
+                one_day_ago = timezone.now() - timezone.timedelta(days=1)
+                
+                if last_update > one_day_ago and not self.force:
+                    self.stdout.write(self.style.SUCCESS('Airport data is up to date'))
+                    return
+
             # Download the file
             csv_file = self.download_file(url)
             if not csv_file:

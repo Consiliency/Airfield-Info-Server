@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 from airport_info.models import Airfield
 import logging
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,8 @@ class Command(BaseCommand):
         for airport in airports:
             if airport.needs_timezone_update():
                 try:
-                    if airport.update_timezone(settings.GOOGLE_MAPS_API_KEY):
+                    updated, is_created = airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+                    if updated:
                         self.stdout.write(f"Updated timezone for {airport}")
                 except Exception as e:
                     logger.error(f"Error updating timezone for {airport}: {str(e)}") 

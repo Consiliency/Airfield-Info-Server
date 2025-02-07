@@ -2,7 +2,6 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from datetime import timedelta
-import logging
 
 
 class DataSource(models.Model):
@@ -119,7 +118,7 @@ class Airfield(models.Model):
         """Update timezone only if needed"""
         if self.needs_timezone_update():
             old_timezone_id = self.timezone.timezone_id if self.timezone else None
-            updated = self.update_timezone(api_key)
+            updated, is_created = self.update_timezone(api_key)
             if updated and (not old_timezone_id or old_timezone_id != updated.timezone_id):
                 # Only update aliases if we got a new timezone
                 from django.core.management import call_command
@@ -160,6 +159,7 @@ class Airfield(models.Model):
                 
                 if data['status'] == 'OK':
                     try:
+                        is_created = False
                         timezone_obj = TimeZone.objects.filter(timezone_id=data['timeZoneId']).first()
                         if not timezone_obj:
                             logger.info(f"Creating new timezone object for {data['timeZoneId']}")
@@ -171,6 +171,7 @@ class Airfield(models.Model):
                                 timezone_name=data['timeZoneName'],
                                 last_updated=timezone.now()
                             )
+                            is_created = True
                         else:
                             logger.info(f"Updating existing timezone object for {data['timeZoneId']}")
                             timezone_obj.raw_offset = data['rawOffset']
@@ -183,7 +184,7 @@ class Airfield(models.Model):
                         self.timezone_last_updated = timezone.now()
                         self.save()
                         logger.info(f"Successfully updated timezone for {self}: {timezone_obj}")
-                        return timezone_obj
+                        return timezone_obj, is_created
                     except Exception as e:
                         logger.error(f"Database error updating timezone for {self}: {str(e)}", exc_info=True)
                 else:
@@ -193,7 +194,7 @@ class Airfield(models.Model):
         except Exception as e:
             logger.error(f"Error updating timezone for {self}: {str(e)}", exc_info=True)
         
-        return None
+        return None, False
 
     def __str__(self):
         return f"{self.name} ({self.iata_code or self.ident})"

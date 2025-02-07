@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import Airfield
 from .serializers import AirfieldSerializer
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -75,8 +74,13 @@ class AirfieldViewSet(viewsets.ReadOnlyModelViewSet):
             logger.info(f"Updating timezone for {airport} - Reason: {reason}")
             logger.info(f"Current timezone data: {airport.timezone.__dict__ if airport.timezone else None}")
             
-            result = airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
+            result, is_created = airport.update_timezone(settings.GOOGLE_MAPS_API_KEY)
             logger.info(f"Update timezone result: {result.__dict__ if result else 'Failed'}")
+            if is_created:
+                # Update timezone aliases
+                logger.info("Updating timezone aliases")
+                from django.core.management import call_command
+                call_command('import_timezone_aliases')
             
             airport.refresh_from_db()
             logger.info(f"After refresh - timezone data: {airport.timezone.__dict__ if airport.timezone else None}")
